@@ -1,0 +1,13 @@
+pip install --upgrade pip
+pip install selenium
+pip install pytest
+
+pip install -r requirements.txt из файла
+pip freeze > requirements.txt в файл
+
+pytest
+pytest -v
+pytest -s
+pytest -s -v
+
+
