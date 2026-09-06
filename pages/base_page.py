@@ -22,3 +22,5 @@ class BasePage:
         self.find(locator).send_keys(text)
         time.sleep(2)
 
+    def get_text(self, locator: locator) -> str:
+        return self.find(locator).text

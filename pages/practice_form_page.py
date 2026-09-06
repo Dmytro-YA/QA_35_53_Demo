@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from pages.base_page import BasePage
 from models.student import Student
-from models.enums import Gender
+from models.enums import Gender, Hobbies
 class PracticeFormPage(BasePage):
     FIRST_NAME = (By.XPATH, "//input[@placeholder = 'First Name']")
     LAST_NAME = (By.XPATH, "//input[@placeholder = 'Last Name']")
@@ -17,6 +17,7 @@ class PracticeFormPage(BasePage):
     STATE  = (By.ID, "react-select-3-input")
     CITY = (By.ID, "react-select-4-input")
     SUBMIT_BTN = (By.XPATH, "//button[text()='Submit']")
+    MODEL_TITLE = (By.ID, "example-modal-sizes-title-lg")
 
     def  fill_and_submit(self, student: Student) -> None:
         self.fill(self.FIRST_NAME, student.first_name)
@@ -27,11 +28,17 @@ class PracticeFormPage(BasePage):
         self.fill(self.MOBILE, student.mobile)
         self._set_date_of_birth(student.date_of_birth)
         self._add_subjects(student.subject)
+        self._choose_hobbies(student.hobbies)
+        self.fill(self.CURRENT_ADDRESS, student.current_address)
+        self._set_state_city(student.state, student.city)
         time.sleep(2)
 
 
 
-        # self.click(self.SUBMIT_BTN)
+        self.click(self.SUBMIT_BTN)
+        time.sleep(2)
+    def check_message(self) -> str:
+        return self.get_text(self.MODEL_TITLE)
 
 
     def _choose_gender(self, gender: Gender) -> None:
@@ -51,4 +58,15 @@ class PracticeFormPage(BasePage):
             field_sub.send_keys(subject)
             time.sleep(0.3)
             field_sub.send_keys(Keys.ENTER)
+
+    def _choose_hobbies(self, hobbies: list[Hobbies]) -> None:
+
+        for hobby in hobbies:
+            self.driver.find_element(By.ID, hobby.locator).click()
+
+
+    def _set_state_city(self, state: str, city: str) -> None:
+        # field_state = self.find(self.STATE)
+        self.find(self.STATE).send_keys(state, Keys.ENTER)
+        self.find(self.CITY).send_keys(city, Keys.ENTER)
 

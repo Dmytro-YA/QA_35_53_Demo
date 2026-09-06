@@ -5,7 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import wait
 
-from models.enums import Gender
+from models.enums import Gender, Hobbies, StateCity
 from models.student import Student
 from faker import Faker
 
@@ -32,10 +32,10 @@ def student(driver) -> Student:
         mobile=fake.numerify("058##########"),
         date_of_birth="12 Feb 1999",
         subject="Math,English,History",
-        hobbies="sports",
+        hobbies=[Hobbies.SPORTS, Hobbies.READING, Hobbies.MUSIC],
         picture="",
         current_address="123 Main St, City, State, Country",
-        state="NCR",
-        city="Delhi"
+        state=StateCity.RAJASTHAN.state,
+        city=StateCity.RAJASTHAN.cities[0],
     )
 
