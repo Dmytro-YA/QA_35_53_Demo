@@ -1,6 +1,7 @@
 import platform
 import time
 
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from pages.base_page import BasePage
@@ -30,6 +31,7 @@ class PracticeFormPage(BasePage):
         self._add_subjects(student.subject)
         self._choose_hobbies(student.hobbies)
         self.fill(self.CURRENT_ADDRESS, student.current_address)
+        self.scroll_down()
         self._set_state_city(student.state, student.city)
         time.sleep(2)
 
