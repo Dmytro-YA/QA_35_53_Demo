@@ -1,37 +1,112 @@
-name: Tests
+
+
+name: UI tests
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:        # allow manual runs from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ALLURE_VERSION: "2.46.1"
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Скачать код репозитория
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Установить Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
-      - name: Install dependencies
+      - name: Установить зависимости
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
+      # Google Chrome на ubuntu-latest уже установлен,
+      # chromedriver Selenium подберёт сам (Selenium Manager).
+      - name: Запустить тесты
+        id: pytest
+        continue-on-error: true   # даже если тесты упали — всё равно строим отчёт
         run: pytest
 
-      - name: Upload HTML report
-        if: always()          # upload even if tests failed
+      - name: Сохранить скриншоты упавших тестов
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-report
-          path: reports/report.html
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
+      - name: Установить Java (нужна программе Allure)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Установить Allure CLI
+        run: |
+          curl -sSL -o allure.tgz \
+            "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
+          tar -xzf allure.tgz -C "$HOME"
+          echo "$HOME/allure-${ALLURE_VERSION}/bin" >> "$GITHUB_PATH"
+
+      # История нужна для графика Trend на вкладке Overview.
+      # Берём её из прошлого отчёта, уже опубликованного на GitHub Pages.
+      # При самом первом запуске истории ещё нет — это не ошибка.
+      - name: Подтянуть историю прошлых запусков
+        run: |
+          mkdir -p allure-results/history
+          PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          for f in history.json history-trend.json duration-trend.json categories-trend.json retry-trend.json; do
+            curl -sfL "$PAGES_URL/history/$f" -o "allure-results/history/$f" || rm -f "allure-results/history/$f"
+          done
+
+      - name: Сохранить результаты Allure (сырые)
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results/
+
+      - name: Собрать HTML-отчёт Allure
+        run: allure generate allure-results -o allure-report --clean
+
+      - name: Подготовить отчёт к публикации
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: allure-report
+
+      - name: Пометить запуск красным, если тесты упали
+        if: steps.pytest.outcome == 'failure'
+        run: |
+          echo "Есть упавшие тесты — подробности в отчёте Allure"
+          exit 1
+
+  deploy:
+    # Публикуем только из основной ветки (из pull request — нет)
+    # и даже если тесты упали: отчёт как раз и нужен, чтобы понять почему.
+    needs: tests
+    if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Опубликовать отчёт на GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
